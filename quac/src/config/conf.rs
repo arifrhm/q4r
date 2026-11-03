@@ -17,6 +17,7 @@ impl Backend{
 
 pub struct Config{
     pub path: PathBuf,
+    pub out: PathBuf,
     pub debug_mode: bool,
     pub backend: Backend,
     pub version: String,
@@ -24,6 +25,10 @@ pub struct Config{
 
 impl Default for Config {
     fn default() -> Self {
-        Self { path: PathBuf::new(), debug_mode: false, backend: Backend::QBE, version: env!("CARGO_PKG_VERSION").to_string() }
+        Self { path: PathBuf::new(), out: PathBuf::from(".quaoar/"), debug_mode: false, backend: Backend::QBE, version: build_version_string() }
     }
+}
+
+fn build_version_string() -> String{
+    return format!("v{} - quac ({})", env!("CARGO_PKG_VERSION"), env!("CARGO_PKG_LICENSE"))
 }

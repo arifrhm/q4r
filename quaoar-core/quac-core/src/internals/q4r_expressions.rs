@@ -1,31 +1,37 @@
 use crate::{
-    backend::Backend,
-    errors::error::QError,
-    expdesc::ExpType,
+    backend::Backend, 
+    expdesc::ExpType, 
     internals::{
-        helpers::{advance, current, expect_any, lookahead, matches},
+        helpers::{
+            self, 
+            advance, 
+            current, 
+            expect_any, 
+            lookahead, 
+            matches
+        }, 
         q4r_functions,
-    },
-    signature::{Literal, Operator},
+    }, 
+    signature::{Literal, Operator}, 
     tokens::VoidstarTokenTypes,
 };
 
 pub fn parse_primary<'a>(backend: &mut Backend<'a>) -> ExpType<'a> {
-    match backend.tokens[backend.cursor].token_type {
+    match current(backend).token_type {
         VoidstarTokenTypes::IntLiteral
         | VoidstarTokenTypes::FloatLiteral
         | VoidstarTokenTypes::CharLiteral
         | VoidstarTokenTypes::BoolLiteral
         | VoidstarTokenTypes::StringLiteral => {
-            let current = backend.tokens[backend.cursor];
+            let current = current(backend);
             advance(1, backend);
 
-            ExpType::LiteralExp {
-                val: Literal::to_literal(
-                    &backend.source[current.start..current.end],
+            ExpType::literal_exp(
+                Literal::to_literal(
+                    &backend.source[current.start()..current.end()],
                     current.token_type,
-                ),
-            }
+                )
+            )
         }
 
         VoidstarTokenTypes::Ident => {
@@ -35,15 +41,15 @@ pub fn parse_primary<'a>(backend: &mut Backend<'a>) -> ExpType<'a> {
                 return q4r_functions::fun_call(backend);
             }
 
-            let current = backend.tokens[backend.cursor];
+            let current = current(backend);
             advance(1, backend);
 
-            ExpType::LiteralExp {
-                val: Literal::to_literal(
-                    &backend.source[current.start..current.end],
+            ExpType::literal_exp(
+                Literal::to_literal(
+                    &backend.source[current.start()..current.end()],
                     current.token_type,
-                ),
-            }
+                )
+            )
         }
 
         VoidstarTokenTypes::OpenParents => {
@@ -53,14 +59,10 @@ pub fn parse_primary<'a>(backend: &mut Backend<'a>) -> ExpType<'a> {
             inner
         }
 
-        _ => QError::evaluate_new_err(
-            format_args!(
-                "unexpected token found on line {}:{}",
-                current(backend).line,
-                current(backend).start
-            ),
-            backend.debug,
-        ),
+        _ => {
+            helpers::add_error("unexpected token found here", backend);
+            ExpType::BadExp
+        }
     }
 }
 
@@ -68,9 +70,7 @@ pub fn parse_unary<'a>(backend: &mut Backend<'a>) -> ExpType<'a> {
     match current(backend).token_type {
         VoidstarTokenTypes::Ampersand => {
             advance(1, backend);
-            ExpType::AddressExp {
-                val: Box::new(parse_primary(backend)),
-            }
+            ExpType::address_exp(Box::new(parse_primary(backend)))
         }
 
         // meh
@@ -83,20 +83,14 @@ pub fn parse_unary<'a>(backend: &mut Backend<'a>) -> ExpType<'a> {
                 ],
                 backend,
             );
-            ExpType::SignedExp {
-                op: Operator::Not,
-                val: Box::new(parse_primary(backend)),
-            }
+            ExpType::signed_exp(Operator::Not, Box::new(parse_primary(backend)))
         }
 
         VoidstarTokenTypes::Asterisk | VoidstarTokenTypes::Minus => {
             let op = Operator::map(current(backend).token_type);
             advance(1, backend);
 
-            ExpType::SignedExp {
-                op,
-                val: Box::new(parse_primary(backend)),
-            }
+            ExpType::signed_exp(op, Box::new(parse_primary(backend)))
         }
 
         VoidstarTokenTypes::Plus => {
@@ -108,6 +102,8 @@ pub fn parse_unary<'a>(backend: &mut Backend<'a>) -> ExpType<'a> {
     }
 }
 
+// this is strictly a left to right parse, which is bad
+// I'll be fixing as I go for the qbe backend, I really can't wait anymore
 pub fn parse_expr<'a>(backend: &mut Backend<'a>) -> ExpType<'a> {
     let mut left = parse_unary(backend);
 
@@ -120,11 +116,9 @@ pub fn parse_expr<'a>(backend: &mut Backend<'a>) -> ExpType<'a> {
         } else {
             parse_unary(backend)
         };
-        left = ExpType::BinaryExp {
-            left: Box::new(left),
-            operator,
-            right: Box::new(right),
-        };
+        left = ExpType::binary_exp(
+            Box::new(left), operator, Box::new(right)
+        );
     }
 
     left

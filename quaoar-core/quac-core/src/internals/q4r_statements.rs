@@ -1,11 +1,19 @@
 use crate::{
-    backend::Backend,
-    expdesc::{AssignOpStmt, AssignStmt, StmtType},
+    backend::Backend, 
+    expdesc::{AssignOpStmt, AssignStmt, StmtType}, 
     internals::{
-        helpers::{advance, current, expect, lookahead, matches},
-        q4r_expressions, q4r_values,
-    },
-    signature::{DecKind, Operator},
+        helpers::{
+            self, 
+            advance, 
+            current, 
+            expect, 
+            lookahead, 
+            matches
+        }, 
+        q4r_expressions, 
+        q4r_values,
+    }, 
+    signature::{DecKind, Operator}, 
     tokens::VoidstarTokenTypes,
 };
 
@@ -37,12 +45,13 @@ pub fn loop_statement<'a>(backend: &mut Backend<'a>) -> StmtType<'a> {
 
         StmtType::loop_stmt(DecKind::For, initializer, exp, incrementer)
     } else {
-        panic!()
+        helpers::add_error("unknown statement found here", backend);        
+        StmtType::BadStmt
     }
 }
 
 pub fn assign_statement<'a>(backend: &mut Backend<'a>) -> AssignStmt<'a> {
-    let ident = &backend.source[current(backend).start..current(backend).end];
+    let ident = &backend.source[current(backend).start()..current(backend).end()];
 
     advance(2, backend);
     let val = q4r_expressions::parse_expr(backend);
@@ -52,7 +61,7 @@ pub fn assign_statement<'a>(backend: &mut Backend<'a>) -> AssignStmt<'a> {
 
 // i += /* whatever expression */
 pub fn assign_op_statement<'a>(backend: &mut Backend<'a>) -> AssignOpStmt<'a> {
-    let ident = &backend.source[current(backend).start..current(backend).end];
+    let ident = &backend.source[current(backend).start()..current(backend).end()];
 
     advance(1, backend);
     let op = Operator::map(current(backend).token_type);
