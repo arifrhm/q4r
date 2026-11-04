@@ -22,6 +22,8 @@ pub fn compile(conf: Config){
     let sourcemap = feed_lines(&s);
 
     let t = Lexer::new(s.clone()).lexerize();
+    println!("{:#?}", t.0);
+
     if !t.1.is_empty(){
         quac_doctor::diagnose(t.1, s, sourcemap, path);
         return;
