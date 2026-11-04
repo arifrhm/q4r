@@ -1,16 +1,18 @@
 use std::{
-    io::Write, path::PathBuf, process::{Command, Stdio},
+    io::Write, 
+    path::PathBuf, 
+    process::{Command, Stdio},
 };
 
 const TARGET: &str = "-x";
 const OBJFILE: &str = "-o";
 
 /// `zig cc -x c -std=c23 -o <prog_name> <<< '<code_bytes>'`
-pub fn mount_and_exec(bytes: &[u8], out: PathBuf) -> Option<bool> {
-    let fmt_out_path = out.as_os_str().to_str()?;
+pub fn mount_and_exec(bytes: &[u8], out: PathBuf, main_name: &str) -> Option<bool> {
+    let fmt_out_path = format!("{}/{}", out.as_os_str().to_str()?, main_name);
 
     let child = Command::new("zigcc")
-        .args([TARGET, "c", "-std=c23", OBJFILE, fmt_out_path, "-"])
+        .args([TARGET, "c", "-std=c23", OBJFILE, &fmt_out_path, "-"])
         .stdin(Stdio::piped())
         .spawn()
         .ok()?;
